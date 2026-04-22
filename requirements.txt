@@ -8,3 +8,7 @@ illustris_python
 swiftsimio
 pyread_eagle
 swiftgalaxy
+astromartini
+multiprocess
+hdecompose 
+
