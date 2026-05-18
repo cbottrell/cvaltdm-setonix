@@ -26,6 +26,22 @@ RUN groupadd -g 25420 bottrell && \
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
+# Install Sofia2 dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    wcslib-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install Sofia2
+RUN cd /tmp && \
+    git clone https://gitlab.com/SoFiA-Admin/SoFiA-2.git && \
+    cd SoFiA-2 && \
+    make OMP=true && \
+    make install DESTDIR=/usr/bin && \
+    cd .. && \
+    rm -rf SoFiA-2
+
 # Start SSH server
 CMD ["/usr/sbin/sshd", "-D"]
 
