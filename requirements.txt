@@ -4,6 +4,7 @@ matplotlib
 scipy
 astropy
 h5py
+mpi4py
 illustris_python
 swiftsimio
 pyread_eagle
