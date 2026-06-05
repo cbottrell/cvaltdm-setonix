@@ -32,10 +32,16 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt /tmp/requirements.txt
 
 # Install requirements, but compile mpi4py with MPI compilers from base image
-# The Pawsey base image has mpicc/mpif90 for Cray MPICH
+# The Pawsey base image has mpicc/mpif90 for Cray MPICH at /usr/bin
 RUN pip install --no-cache-dir --break-system-packages \
-    $(grep -v mpi4py /tmp/requirements.txt | tr '\n' ' ') && \
-    MPICC=mpicc pip install --no-cache-dir --break-system-packages mpi4py
+    $(grep -v mpi4py /tmp/requirements.txt | tr '\n' ' ')
+
+# Build and install mpi4py with explicit MPI configuration
+# Set environment variables to ensure proper linking against Cray MPICH
+RUN MPICC=/usr/bin/mpicc \
+    LDFLAGS="-L/usr/lib -Wl,-rpath,/usr/lib" \
+    LD_LIBRARY_PATH="/usr/lib:$LD_LIBRARY_PATH" \
+    pip install --no-cache-dir --break-system-packages --no-binary :all: mpi4py
 
 # Build and install Sofia2
 RUN cd /tmp && \
