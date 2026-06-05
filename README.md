@@ -228,7 +228,7 @@ tail -f dev-container.out
 #### Pull the Singularity Image
 
 ```bash
-module load singularity/4.1.0-nompi
+module load singularity/4.1.0-mpi
 cd $MYSOFTWARE/singularity/cvaltdm-setonix
 
 # Pull and convert to Singularity format (use your Docker Hub username)
@@ -249,12 +249,17 @@ Use the execution container with your MPI applications. Example:
 #SBATCH --ntasks=64
 #SBATCH --time=00:10:00
 
-module load singularity/4.1.0-nompi
+module load singularity/4.1.0-mpi
 
-cd $MYSOFTWARE/singularity/cvaltdm-setonix-dev
+cd $MYSOFTWARE/singularity/cvaltdm-setonix
 
-# Run your MPI application in the container
-singularity exec cvaltdm-setonix-mpich.sif mpirun -np $SLURM_NTASKS ./your_mpi_app
+# Run your MPI application via srun (host MPI launches tasks, container provides runtime)
+srun -N $SLURM_JOB_NUM_NODES -n $SLURM_NTASKS -c 1 -m block:block:block \
+    singularity exec cvaltdm-setonix-mpich.sif ./your_mpi_app
+
+# For Python scripts using mpi4py:
+# srun -N $SLURM_JOB_NUM_NODES -n $SLURM_NTASKS -c 1 -m block:block:block \
+#     singularity exec cvaltdm-setonix-mpich.sif python your_script.py
 ```
 
 Save as `run-mpi-job.sh` and submit with:
