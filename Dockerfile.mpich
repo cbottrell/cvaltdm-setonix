@@ -30,7 +30,12 @@ RUN apt-get update && apt-get install -y \
 
 # Copy and install Python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
+
+# Install requirements, but compile mpi4py with MPI compilers from base image
+# The Pawsey base image has mpicc/mpif90 for Cray MPICH
+RUN pip install --no-cache-dir --break-system-packages \
+    $(grep -v mpi4py /tmp/requirements.txt | tr '\n' ' ') && \
+    MPICC=mpicc pip install --no-cache-dir --break-system-packages mpi4py
 
 # Build and install Sofia2
 RUN cd /tmp && \
