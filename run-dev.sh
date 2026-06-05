@@ -2,9 +2,9 @@
 
 module load singularity/4.1.0-nompi
 
-CONTAINER_DIR="$MYSOFTWARE/singularity/cvaltdm-setonix-dev"
+CONTAINER_DIR="$MYSOFTWARE/singularity/cvaltdm-setonix"
 CONTAINER_IMAGE="$CONTAINER_DIR/cvaltdm-setonix-dev.sif"
-singularity pull --force "$CONTAINER_DIR/cvaltdm-setonix-dev.sif" docker://cbottrell/cvaltdm-setonix-dev:latest
+singularity pull --force "$CONTAINER_IMAGE" docker://cbottrell/cvaltdm-setonix:dev
 
 # Setup SSH in fakeHome
 FAKE_HOME="$MYSOFTWARE/fakeHome"
@@ -87,8 +87,26 @@ fi
 # Start Singularity container with SSH server
 # Note: setonix singularity module handles environment variables for direct execution,
 # but not for SSH logins. The .env.singularity file handles variables for SSH sessions.
-CONTAINER_IMAGE="$CONTAINER_DIR/cvaltdm-setonix-dev.sif"
 
+echo "Starting SSH container..."
 singularity run --home="$FAKE_HOME" "$CONTAINER_IMAGE" &
-echo "Container started with PID $!"
+CONTAINER_PID=$!
+echo "Container started with PID $CONTAINER_PID"
+
+# Wait a few seconds for SSH to initialize
+sleep 3
+
+# Verify SSH is listening on port 9300
+if netstat -tuln 2>/dev/null | grep -q ':9300'; then
+    echo "✓ SSH server is listening on port 9300"
+elif ss -tuln 2>/dev/null | grep -q ':9300'; then
+    echo "✓ SSH server is listening on port 9300"
+else
+    echo "⚠ WARNING: SSH server may not be listening on port 9300"
+    echo "Checking container processes..."
+    singularity exec --home="$FAKE_HOME" "$CONTAINER_IMAGE" ps aux | grep -i sshd
+fi
+
 echo "Hostname written to $FAKE_HOME/.container_host"
+echo "Container hostname:"
+cat "$FAKE_HOME/.container_host"
