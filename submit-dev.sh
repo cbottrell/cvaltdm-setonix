@@ -22,7 +22,15 @@ echo "Singularity version: $(singularity --version)"
 echo ""
 
 echo "Navigating to container directory..."
-cd $MYSOFTWARE/singularity/cvaltdm-setonix-dev
+REPO_DIR="$MYSOFTWARE/singularity/cvaltdm-setonix"
+if [ ! -d "$REPO_DIR" ]; then
+    echo "ERROR: Repository not found at $REPO_DIR"
+    echo "Please clone the repository first:"
+    echo "  cd $MYSOFTWARE/singularity"
+    echo "  git clone https://github.com/cbottrell/cvaltdm-setonix.git"
+    exit 1
+fi
+cd "$REPO_DIR"
 echo "Working directory: $(pwd)"
 echo ""
 
