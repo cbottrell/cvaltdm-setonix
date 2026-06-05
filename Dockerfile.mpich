@@ -1,16 +1,31 @@
 FROM quay.io/pawsey/mpich-base:3.4.3_ubuntu24.04
 
-# Install Python 3.13 and additional system dependencies
+# Build Python 3.13 from source and install additional dependencies
 RUN apt-get update && apt-get install -y \
-    python3.13 \
-    python3.13-venv \
-    python3-pip \
     build-essential \
+    libssl-dev \
+    libffi-dev \
+    libgdbm-dev \
+    libc6-dev \
+    libnsl-dev \
+    tk-dev \
+    lzma-dev \
+    zlib1g-dev \
+    wget \
     git \
     wcslib-dev && \
-    rm -rf /var/lib/apt/lists/* && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
+    wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz && \
+    tar xzf Python-3.13.0.tgz && \
+    cd Python-3.13.0 && \
+    ./configure --enable-optimizations --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf Python-3.13.0 Python-3.13.0.tgz && \
+    update-alternatives --install /usr/bin/python python /usr/local/bin/python3.13 1 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.13 1 && \
+    /usr/local/bin/python3.13 -m pip install --upgrade pip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python requirements
 COPY requirements.txt /tmp/requirements.txt
