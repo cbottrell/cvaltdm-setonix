@@ -1,8 +1,11 @@
-# VS Code + Singularity Container for setonix
+# Containerized Development & Execution Environment for Setonix
 
-A containerized development environment using Jupyter minimal-notebook (Python 3.13) with SSH server, allowing remote VS Code connections to compute nodes on the Pawsey setonix supercomputer.
+This repository provides two container variants for the Pawsey setonix supercomputer:
 
-## Features
+1. **Development Container** (`Dockerfile.dev`, `:dev` tag) — Jupyter Lab and VS Code with SSH server for interactive development
+2. **Execution Container** (`Dockerfile.mpich`, `:mpich` tag) — MPI-enabled container using MPICH for running parallel applications
+
+## Development Container Features
 
 - **SSH-based access** on port 9300
 - **Key-based authentication** (no passwords)
@@ -11,6 +14,14 @@ A containerized development environment using Jupyter minimal-notebook (Python 3
 - **Pre-installed packages:** numpy, pandas, matplotlib
 - **Runs on compute nodes** via SLURM scheduler
 - **Accessible from Mac/Linux** via ProxyJump through login node
+- **Jupyter and VS Code** for interactive development
+
+## Execution Container Features
+
+- **MPICH** MPI implementation pre-installed
+- **Optimized for parallel computing** on setonix
+- **Python 3.13** runtime environment
+- **Suitable for HPC applications** and batch processing
 
 ## Prerequisites
 
@@ -34,17 +45,19 @@ id
 
 Save your `uid`, `gid`, and username - you'll need these in the next step.
 
-## Step 2: Customize the Dockerfile for Your User
+## Step 2: Choose and Customize the Appropriate Dockerfile
 
-The `Dockerfile` contains hardcoded user information that **must** be customized for your account. Different users must rebuild the image with their own credentials.
+### Development Container (`Dockerfile.dev`)
+
+The development Dockerfile contains hardcoded user information that **must** be customized for your account. You must rebuild with your own credentials.
 
 1. Clone this repository on your local machine:
 ```bash
-git clone https://github.com/cbottrell/cvaltdm-setonix-dev.git
-cd cvaltdm-setonix-dev
+git clone https://github.com/cbottrell/cvaltdm-setonix.git
+cd cvaltdm-setonix
 ```
 
-2. Edit the `Dockerfile` and find this section (around line 22):
+2. Edit `Dockerfile.dev` and find the user creation section:
 ```dockerfile
 # Create user with matching host UID/GID
 RUN groupadd -g 25420 bottrell && \
@@ -60,26 +73,36 @@ RUN groupadd -g <YOUR_GID> <YOUR_USERNAME> && \
 
 Replace `<YOUR_UID>`, `<YOUR_GID>`, and `<YOUR_USERNAME>` with values from Step 1.
 
+### Execution Container (`Dockerfile.mpich`)
+
+The execution container is based on Pawsey's maintained MPICH base image and does **not** require user/group customization. You can build and use it as-is without modifications.
+
 ## Step 3: Build and Push to Docker Hub
 
-Now build the Docker image with your credentials and push it to your Docker Hub account.
+Build your Docker images and push them to Docker Hub.
 
 **On your local machine:**
 
 ```bash
 # Navigate to repo
-cd /path/to/cvaltdm-setonix-dev
+cd /path/to/cvaltdm-setonix
 
 # Log in to Docker Hub
 docker login
 
-# Build and push (replace <DOCKER_USERNAME> with your Docker Hub username)
-docker buildx build --platform linux/amd64 --push -t <DOCKER_USERNAME>/cvaltdm-setonix-dev:latest .
+# Build and push the Development container (requires customization from Step 2)
+# Replace <DOCKER_USERNAME> with your Docker Hub username
+docker buildx build --platform linux/amd64 --push -f Dockerfile.dev -t <DOCKER_USERNAME>/cvaltdm-setonix:dev .
+
+# Build and push the Execution container (no customization needed)
+docker buildx build --platform linux/amd64 --push -f Dockerfile.mpich -t <DOCKER_USERNAME>/cvaltdm-setonix:mpich .
 ```
 
-**Note:** This builds for AMD64 (setonix architecture) and pushes directly to Docker Hub.
+**Note:** This builds for AMD64 (setonix architecture) and pushes directly to Docker Hub. Use the `-f` flag to specify which Dockerfile to build. The execution container can be built immediately; the development container requires the user/group customization from Step 2 first.
 
-## Step 4: Set Up SSH Keys
+## Step 4: Set Up SSH Keys (Development Container Only)
+
+This step is **only required** if you're using the **development container** (`Dockerfile.dev`). The execution container does not include an SSH server.
 
 Generate SSH keys (if needed) on both your local machine and setonix, then update `run-container.sh` with both public keys.
 
@@ -138,9 +161,9 @@ git commit -m "Add SSH keys for my account"
 git push  # Only if you have write access, or push to your own fork
 ```
 
-## Step 5: Use on setonix
+## Step 5: Use on Setonix
 
-Now that you've built and pushed your custom image, you can use it on setonix.
+Now that you've built and pushed your custom image, you can use it on setonix. Instructions differ depending on which container you're using.
 
 ### Clone Repository on setonix
 
@@ -148,25 +171,27 @@ Now that you've built and pushed your custom image, you can use it on setonix.
 ssh setonix
 mkdir -p $MYSOFTWARE/singularity
 cd $MYSOFTWARE/singularity
-git clone https://github.com/cbottrell/cvaltdm-setonix-dev.git
-cd cvaltdm-setonix-dev
+git clone https://github.com/cbottrell/cvaltdm-setonix.git
+cd cvaltdm-setonix
 ```
 
 If you forked the repo and updated SSH keys there, clone your fork instead.
 
-### Pull the Singularity Image
+### Using the Development Container
+
+#### Pull the Singularity Image
 
 ```bash
 module load singularity/4.1.0-nompi
-cd $MYSOFTWARE/singularity/cvaltdm-setonix-dev
+cd $MYSOFTWARE/singularity/cvaltdm-setonix
 
 # Pull and convert to Singularity format (use your Docker Hub username)
-singularity pull cvaltdm-setonix-dev.sif docker://<DOCKER_USERNAME>/cvaltdm-setonix-dev:latest
+singularity pull cvaltdm-setonix-dev.sif docker://<DOCKER_USERNAME>/cvaltdm-setonix:dev
 ```
 
 This creates `cvaltdm-setonix-dev.sif` (Singularity image file).
 
-### Customize submit-container.sh with Your Pawsey Project
+#### Customize submit-container.sh with Your Pawsey Project
 
 Before submitting the job, you must update `submit-container.sh` with your Pawsey project code. SLURM does not support environment variables in batch directives, so this **must be hardcoded**.
 
@@ -186,16 +211,55 @@ ssh setonix
 my_projects  # Lists all your project IDs
 ```
 
-### Submit Container Job
+#### Submit Container Job
 
 ```bash
-cd $MYSOFTWARE/singularity/vscode-setonix
+cd $MYSOFTWARE/singularity/cvaltdm-setonix
 sbatch submit-container.sh
 ```
 
 Watch the output:
 ```bash
 tail -f dev-container.out
+```
+
+### Using the Execution Container (MPI)
+
+#### Pull the Singularity Image
+
+```bash
+module load singularity/4.1.0-nompi
+cd $MYSOFTWARE/singularity/cvaltdm-setonix
+
+# Pull and convert to Singularity format (use your Docker Hub username)
+singularity pull cvaltdm-setonix-mpich.sif docker://<DOCKER_USERNAME>/cvaltdm-setonix:mpich
+```
+
+This creates `cvaltdm-setonix-mpich.sif`.
+
+#### Create a Batch Script for Your MPI Application
+
+Use the execution container with your MPI applications. Example:
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=mpi-job
+#SBATCH --account=<YOUR_PAWSEY_PROJECT_CODE>
+#SBATCH --nodes=2
+#SBATCH --ntasks=64
+#SBATCH --time=00:10:00
+
+module load singularity/4.1.0-nompi
+
+cd $MYSOFTWARE/singularity/cvaltdm-setonix-dev
+
+# Run your MPI application in the container
+singularity exec cvaltdm-setonix-mpich.sif mpirun -np $SLURM_NTASKS ./your_mpi_app
+```
+
+Save as `run-mpi-job.sh` and submit with:
+```bash
+sbatch run-mpi-job.sh
 ```
 
 **Note:** Running the container automatically creates a `$MYSOFTWARE/fakeHome` folder. This directory contains all VS Code cache and extensions that persist across container runtimes and rebuilds.
@@ -379,7 +443,7 @@ RUN apt-get update && apt-get install -y \
 
 Then rebuild:
 ```bash
-docker buildx build --platform linux/amd64 --push -t <DOCKER_HUB_USERNAME>/vscode-setonix:latest .
+docker buildx build --platform linux/amd64 --push -f Dockerfile.dev -t <DOCKER_USERNAME>/cvaltdm-setonix:dev .
 ```
 
 ### Run Longer Jobs
@@ -400,10 +464,11 @@ Modify `submit-container.sh`:
 
 ## Project Info
 
-- **GitHub:** https://github.com/cbottrell/vscode-setonix
-- **Docker Hub:** https://hub.docker.com/r/<YOUR_DOCKER_HUB_USERNAME>/vscode-setonix
-- **Base Image:** Ubuntu 22.04 LTS
-- **SSH Port:** 9300
+- **GitHub:** https://github.com/cbottrell/cvaltdm-setonix
+- **Docker Hub:** https://hub.docker.com/r/cbottrell/cvaltdm-setonix
+  - `:dev` tag — Development container (Jupyter + VS Code with SSH)
+  - `:mpich` tag — Execution container (MPICH MPI environment)
+- **SSH Port:** 9300 (dev container only)
 
 ## Customization Checklist
 

@@ -1,0 +1,21 @@
+FROM quay.io/pawsey/mpich-base:3.4.3_ubuntu24.04
+
+# Install additional system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    wcslib-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python requirements
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
+
+# Build and install Sofia2
+RUN cd /tmp && \
+    git clone https://gitlab.com/SoFiA-Admin/SoFiA-2.git && \
+    cd SoFiA-2 && \
+    make OMP=true && \
+    make install DESTDIR=/usr/bin && \
+    cd .. && \
+    rm -rf SoFiA-2
