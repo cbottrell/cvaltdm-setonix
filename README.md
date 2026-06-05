@@ -372,6 +372,8 @@ This is by design to maintain proper permissions and security.
 
 ## Container Details
 
+### Development Container (`Dockerfile.dev`)
+
 - **Base Image:** Jupyter minimal-notebook (Python 3.13)
 - **Pre-installed packages:** numpy, pandas, matplotlib
 - **SSH Port:** 9300 (inside container)
@@ -388,6 +390,16 @@ This is by design to maintain proper permissions and security.
 - **Home:** `$MYSOFTWARE/fakeHome` (mounted from host setonix)
 - **SSH Keys:** Copied to fakeHome's `.ssh/` by `run-dev.sh`
 
+### Execution Container (`Dockerfile.mpich`)
+
+- **Base Image:** Pawsey's MPICH base (Ubuntu 24.04)
+- **Python Version:** 3.13 (built from source)
+- **MPI Implementation:** MPICH 3.4.3 (pre-installed from base)
+- **mpi4py:** Pre-compiled against Cray MPICH
+- **Pre-installed packages:** numpy, pandas, matplotlib, scipy, astropy, h5py, Sofia2, and more
+- **MPI Execution:** Requires `module load singularity/4.1.0-mpi` on setonix (MPI-aware singularity wrapper)
+- **Execution Pattern:** Host MPI (`srun`) launches tasks, container provides runtime
+
 ## Troubleshooting
 
 **Docker build fails**
@@ -399,6 +411,11 @@ This is by design to maintain proper permissions and security.
 - Check compute node name: `bash get-container-host.sh`
 - Ensure `run-dev.sh` has your correct SSH public keys
 - Verify SSH config points to correct hostname from `get-container-host.sh`
+
+**MPI Execution: ImportError libfabric or mpi4py not found**
+- Ensure you loaded `module load singularity/4.1.0-mpi` on setonix (not `singularity/4.1.0-nompi`)
+- The MPI-aware singularity module ensures proper library binding for MPI applications
+- Verify with: `module list | grep singularity`
 
 **Permission Denied on files**
 - Ensure your Dockerfile UID/GID matches your setonix UID/GID exactly
