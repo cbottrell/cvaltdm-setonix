@@ -104,7 +104,7 @@ docker buildx build --platform linux/amd64 --push -f Dockerfile.mpich -t <DOCKER
 
 This step is **only required** if you're using the **development container** (`Dockerfile.dev`). The execution container does not include an SSH server.
 
-Generate SSH keys (if needed) on both your local machine and setonix, then update `run-container.sh` with both public keys.
+Generate SSH keys (if needed) on both your local machine and setonix, then update `run-dev.sh` with both public keys.
 
 ### Generate SSH Keys (if needed)
 
@@ -127,9 +127,9 @@ ssh-keygen -t ed25519 -C "your-setonix-email@example.com"
 exit
 ```
 
-### Update run-container.sh with Your SSH Keys
+### Update run-dev.sh with Your SSH Keys
 
-You **must** edit `run-container.sh` and replace the default `authorized_keys` with your own keys.
+You **must** edit `run-dev.sh` and replace the default `authorized_keys` with your own keys.
 
 1. Get your local machine's public key:
 ```bash
@@ -143,7 +143,7 @@ cat ~/.ssh/id_ed25519.pub  # or ~/.ssh/id_rsa.pub
 exit
 ```
 
-3. On your local machine, edit `run-container.sh` and update the `authorized_keys` section (around line 20):
+3. On your local machine, edit `run-dev.sh` and update the `authorized_keys` section (around line 20):
 
 ```bash
 cat > "$SSH_DIR/authorized_keys" <<'EOF'
@@ -156,7 +156,7 @@ Each key should be on its own line.
 
 4. Commit and push these changes back to the repo (or keep them local):
 ```bash
-git add run-container.sh
+git add run-dev.sh
 git commit -m "Add SSH keys for my account"
 git push  # Only if you have write access, or push to your own fork
 ```
@@ -191,11 +191,11 @@ singularity pull cvaltdm-setonix-dev.sif docker://<DOCKER_USERNAME>/cvaltdm-seto
 
 This creates `cvaltdm-setonix-dev.sif` (Singularity image file).
 
-#### Customize submit-container.sh with Your Pawsey Project
+#### Customize submit-dev.sh with Your Pawsey Project
 
-Before submitting the job, you must update `submit-container.sh` with your Pawsey project code. SLURM does not support environment variables in batch directives, so this **must be hardcoded**.
+Before submitting the job, you must update `submit-dev.sh` with your Pawsey project code. SLURM does not support environment variables in batch directives, so this **must be hardcoded**.
 
-1. Edit `submit-container.sh` and find line 2:
+1. Edit `submit-dev.sh` and find line 2:
 ```bash
 #SBATCH --account=pawsey1149
 ```
@@ -215,7 +215,7 @@ my_projects  # Lists all your project IDs
 
 ```bash
 cd $MYSOFTWARE/singularity/cvaltdm-setonix
-sbatch submit-container.sh
+sbatch submit-dev.sh
 ```
 
 Watch the output:
@@ -366,8 +366,8 @@ This is by design to maintain proper permissions and security.
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Container definition - **must be customized** with your UID/GID/username |
-| `run-container.sh` | Startup script: sets up SSH keys, writes hostname, runs container |
-| `submit-container.sh` | SLURM batch script to submit container job |
+| `run-dev.sh` | Startup script: sets up SSH keys, writes hostname, runs container |
+| `submit-dev.sh` | SLURM batch script to submit dev container job |
 | `get-container-host.sh` | Helper to retrieve compute node hostname for SSH config |
 
 ## Container Details
@@ -386,7 +386,7 @@ This is by design to maintain proper permissions and security.
 - **User:** Your setonix username (customized per user in Dockerfile)
 - **UID/GID:** Your setonix UID/GID (customized per user in Dockerfile)
 - **Home:** `$MYSOFTWARE/fakeHome` (mounted from host setonix)
-- **SSH Keys:** Copied to fakeHome's `.ssh/` by `run-container.sh`
+- **SSH Keys:** Copied to fakeHome's `.ssh/` by `run-dev.sh`
 
 ## Troubleshooting
 
@@ -397,7 +397,7 @@ This is by design to maintain proper permissions and security.
 **SSH Connection Refused**
 - Verify container is running: `squeue -u <YOUR_USERNAME>`
 - Check compute node name: `bash get-container-host.sh`
-- Ensure `run-container.sh` has your correct SSH public keys
+- Ensure `run-dev.sh` has your correct SSH public keys
 - Verify SSH config points to correct hostname from `get-container-host.sh`
 
 **Permission Denied on files**
@@ -408,16 +408,16 @@ This is by design to maintain proper permissions and security.
 **Container fails to start**
 - Check the SLURM output: `cat dev-container.out`
 - Verify singularity module is loaded: `module list`
-- Ensure sufficient memory allocated in `submit-container.sh`
+- Ensure sufficient memory allocated in `submit-dev.sh`
 - Update SSH config with correct hostname
-- Ensure `run-container.sh` completed (check `dev.out`)
+- Ensure `run-dev.sh` completed (check `dev.out`)
 
 **"No such file or directory" for SSH key**
 - Ensure `~/.ssh/id_ed25519` exists on setonix host
 - Check permissions: `chmod 600 ~/.ssh/id_ed25519`
 
 **Container times out**
-- Increase `--time` in `submit-container.sh` (default 12 hours)
+- Increase `--time` in `submit-dev.sh` (default 12 hours)
 - Resubmit job before it expires
 
 **VS Code can't access fakeHome files**
@@ -430,7 +430,7 @@ This is by design to maintain proper permissions and security.
 The container uses:
 - `MYSOFTWARE` - Base path for fakeHome (set on setonix login nodes)
 - `$MYSOFTWARE/fakeHome` - Container home directory (mounted via `--home` flag)
-- `$MYSOFTWARE/fakeHome/.container_host` - Hostname file (written by `run-container.sh`)
+- `$MYSOFTWARE/fakeHome/.container_host` - Hostname file (written by `run-dev.sh`)
 
 ## Advanced Usage
 
@@ -453,7 +453,7 @@ docker buildx build --platform linux/amd64 --push -f Dockerfile.dev -t <DOCKER_U
 
 ### Run Longer Jobs
 
-Modify `submit-container.sh`:
+Modify `submit-dev.sh`:
 
 ```bash
 #SBATCH --time=24:00:00  # 24 hours
@@ -461,7 +461,7 @@ Modify `submit-container.sh`:
 
 ### Use Different Allocation
 
-Modify `submit-container.sh`:
+Modify `submit-dev.sh`:
 
 ```bash
 #SBATCH --account=$PAWSEY_PROJECT  # Uses environment variable set on setonix
@@ -480,7 +480,7 @@ Modify `submit-container.sh`:
 Before first use, ensure you have:
 
 - [ ] Updated Dockerfile with your username/UID/GID
-- [ ] Updated `run-container.sh` with your public SSH keys
+- [ ] Updated `run-dev.sh` with your public SSH keys
 - [ ] Built and pushed container to your Docker Hub account
 - [ ] Updated SSH config files with your username
 - [ ] Set environment variables: `MYSOFTWARE` and `PAWSEY_PROJECT`
